@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Cuestionario de Hardware y Redes</title>
+<style>
+    body {
+        font-family: "Poppins", sans-serif;
+        background: linear-gradient(135deg, #1e3c72, #2a5298);
+        margin: 0;
+        padding: 0;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        min-height: 100vh;
+        color: #fff;
+    }
+
+    .container {
+        width: 92%;
+        max-width: 760px;
+        background: rgba(255,255,255,0.12);
+        padding: 28px;
+        border-radius: 16px;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.25);
+        backdrop-filter: blur(8px);
+    }
+
+    h2, h3 { text-align: center; font-weight: 600; margin: 6px 0 14px; }
+    .top-row { display:flex; gap:12px; align-items:center; justify-content:space-between; }
+    .student-badge { background: rgba(255,255,255,0.08); padding:8px 12px; border-radius:10px; font-size:14px; }
+
+    input[type="text"] {
+        width: 100%; padding: 12px; border-radius: 8px; border: none; margin-top: 10px; outline: none; font-size: 16px;
+    }
+
+    .btn { display:inline-block; padding: 12px 16px; background: #00b4d8; color: white; border: none; border-radius: 10px; font-size: 16px; cursor: pointer; transition: 0.22s; text-align:center; width:100%; }
+    .btn:hover { transform: translateY(-3px); box-shadow: 0 8px 20px rgba(0,0,0,0.2);} 
+
+    .question { margin-bottom: 18px; font-size: 18px; font-weight: 500; }
+    .options label { display:block; padding:12px; background: rgba(255,255,255,0.12); margin:8px 0; border-radius:10px; cursor:pointer; transition:0.18s; }
+    .options input { margin-right:10px; }
+    .options label:hover { background: rgba(255,255,255,0.22); }
+
+    .footer { display:flex; gap:10px; margin-top:12px; }
+    .small { font-size:13px; opacity:0.9; }
+
+    .result { background: rgba(0,0,0,0.25); padding: 18px; border-radius: 12px; margin-top: 18px; text-align: center; }
+
+    .answer-list { margin-top:14px; }
+    .answer-item { background: rgba(255,255,255,0.06); padding:12px; border-radius:10px; margin-bottom:10px; }
+    .correct { color: #2ecc71; font-weight:600; }
+    .incorrect { color: #ff6b6b; font-weight:600; }
+
+    @media (max-width:520px){ .container{padding:18px;} .question{font-size:16px;} }
+</style>
+</head>
+<body>
+<div class="container">
+    <div id="startScreen">
+        <div class="top-row">
+            <h2>Cuestionario: Hardware y Redes</h2>
+            <div class="student-badge">Versión móvil lista ✅</div>
+        </div>
+        <label for="studentName">Ingresa tu nombre:</label>
+        <input type="text" id="studentName" placeholder="Ej. María Pérez">
+        <button class="btn" id="startBtn">Iniciar Cuestionario</button>
+    </div>
+
+    <div id="quizScreen" style="display:none;"></div>
+    <div id="resultScreen" style="display:none;"></div>
+</div>
+
+<script>
+// Banco de preguntas (al menos 10 para variedad)
+const questionBank = [
+    { q: "¿Qué componente se considera el cerebro de la computadora?", o: ["RAM", "Disco duro", "CPU", "Fuente de poder"], a: 2 },
+    { q: "¿Cuál de los siguientes es un dispositivo de salida?", o: ["Teclado", "Monitor", "Mouse", "Micrófono"], a: 1 },
+    { q: "¿Qué tipo de red abarca un área geográfica pequeña como una casa o escuela?", o: ["WAN", "MAN", "LAN", "VPN"], a: 2 },
+    { q: "¿Cuál cable es más utilizado para redes domésticas?", o: ["Coaxial", "Par trenzado (UTP)", "Fibra óptica", "Serial"], a: 1 },
+    { q: "¿Qué dispositivo asigna direcciones IP dentro de una red?", o: ["Switch", "Router", "Hub", "Modem"], a: 1 },
+    { q: "La memoria RAM es...?", o: ["Almacenamiento permanente", "Volátil", "Solo lectura", "Externa"], a: 1 },
+    { q: "¿Qué protocolo asigna IP automáticamente?", o: ["FTP", "DHCP", "DNS", "HTTP"], a: 1 },
+    { q: "Un switch trabaja principalmente en la capa...", o: ["1 (Física)", "2 (Enlace)", "3 (Red)", "4 (Transporte)"], a: 1 },
+    { q: "¿Qué red es más extensa?", o: ["LAN", "WAN", "PAN", "MAN"], a: 1 },
+    { q: "La tarjeta de red también se llama...", o: ["GPU", "NIC", "PCI", "SATA"], a: 1 },
+    { q: "¿Qué componente almacena el sistema operativo de forma permanente?", o: ["ROM", "RAM", "Disco duro/SSD", "CPU"], a: 2 },
+    { q: "¿Qué dispositivo se utiliza para ampliar señales inalámbricas en una casa?", o: ["Switch", "Access Point", "Modem", "Hub"], a: 1 }
+];
+
+let selectedQuestions = [];
+let currentIndex = 0;
+let correct = 0;
+let wrong = 0;
+let student = "";
+let selectedAnswers = []; // guarda la opción elegida por el estudiante para cada pregunta (índice)
+
+const startBtn = document.getElementById('startBtn');
+startBtn.addEventListener('click', startQuiz);
+
+function startQuiz(){
+    student = document.getElementById('studentName').value.trim();
+    if(!student){ alert('Por favor ingresa tu nombre.'); return; }
+
+    // seleccionar 10 preguntas aleatorias
+    const shuffled = [...questionBank].sort(()=> Math.random()-0.5);
+    selectedQuestions = shuffled.slice(0, 10);
+
+    currentIndex = 0; correct = 0; wrong = 0; selectedAnswers = [];
+
+    document.getElementById('startScreen').style.display = 'none';
+    document.getElementById('resultScreen').style.display = 'none';
+    document.getElementById('quizScreen').style.display = 'block';
+
+    showQuestion();
+}
+
+function showQuestion(){
+    updateProgress();
+    if(currentIndex >= selectedQuestions.length){ finishQuiz(); return; }
+    const q = selectedQuestions[currentIndex];
+
+    let html = `<h3>Pregunta ${currentIndex+1} de ${selectedQuestions.length}</h3>`;
+    html += `<div id='progressBarContainer' style='width:100%; height:14px; background:rgba(255,255,255,0.25); border-radius:10px; margin-bottom:14px;'>
+                <div id='progressBar' style='height:100%; width:0%; background:#00e676; border-radius:10px; transition:0.4s;'></div>
+             </div>`;
+    html += `<p class='question'>${q.q}</p>`;
+    html += `<div class='options'>`;
+
+    q.o.forEach((opt,i)=>{
+        html += `<label><input type='radio' name='opt' value='${i}'> ${opt}</label>`;
+    });
+
+    html += `</div>`;
+    html += `<div class='footer'><button class='btn' onclick='prevQuestion()' style='width:48%; background:#6c9ac8;'>Anterior</button><button class='btn' onclick='nextQuestion()' style='width:48%;'>Siguiente</button></div>`;
+
+    document.getElementById('quizScreen').innerHTML = html;
+
+    const chosen = selectedAnswers[currentIndex];
+    if(typeof chosen === 'number'){
+        const inputs = document.getElementsByName('opt');
+        inputs.forEach(inp=>{ if(parseInt(inp.value)===chosen) inp.checked = true; });
+    }
+}
+
+function nextQuestion(){
+    const options = document.getElementsByName('opt');
+    let selected = -1;
+    options.forEach(o=>{ if(o.checked) selected = parseInt(o.value); });
+
+    if(selected === -1){ alert('Debes seleccionar una respuesta.'); return; }
+
+    // guardar respuesta
+    selectedAnswers[currentIndex] = selected;
+
+    // avanzar
+    currentIndex++;
+    showQuestion();
+}
+
+function prevQuestion(){
+    if(currentIndex === 0) return;
+    // guardar si hay selección antes de retroceder
+    const options = document.getElementsByName('opt');
+    options.forEach(o=>{ if(o.checked) selectedAnswers[currentIndex] = parseInt(o.value); });
+
+    currentIndex--;
+    showQuestion();
+}
+
+function finishQuiz() {
+    // calcular resultados
+    correct = 0; wrong = 0;
+    selectedQuestions.forEach((q,i)=>{
+        const chosen = selectedAnswers[i];
+        if(typeof chosen !== 'number'){
+            // si no respondió, contar como incorrecta
+            wrong++;
+        } else if(chosen === q.a) correct++;
+        else wrong++;
+    });
+
+    document.getElementById('quizScreen').style.display = 'none';
+
+    let html = `<h2>Resultados de ${escapeHtml(student)}</h2>`;
+    html += `<div class='result'><p>✔️ Correctas: <strong>${correct}</strong></p><p>❌ Incorrectas: <strong>${wrong}</strong></p></div>`;
+
+    html += `<div class='answer-list'><h3>Detalle de respuestas</h3>`;
+    selectedQuestions.forEach((q,i)=>{
+        const chosen = selectedAnswers[i];
+        const chosenText = (typeof chosen === 'number') ? q.o[chosen] : '<em>No respondió</em>';
+        const correctText = q.o[q.a];
+        const isCorrect = (chosen === q.a);
+
+        html += `<div class='answer-item'>`;
+        html += `<strong>${i+1}. ${q.q}</strong><br>`;
+        html += `Tu respuesta: <span class='${isCorrect? 'correct':'incorrect'}'>${escapeHtml(chosenText)}</span><br>`;
+        html += `Respuesta correcta: <span class='correct'>${escapeHtml(correctText)}</span>`;
+        html += `</div>`;
+    });
+    html += `</div>`;
+
+    html += `<div style='margin-top:12px; display:flex; gap:10px;'><button class='btn' onclick='restart()' style='width:48%; background:#6c9ac8;'>Reintentar</button><button class='btn' onclick='location.reload()' style='width:48%;'>Salir</button></div>`;
+
+    document.getElementById('resultScreen').innerHTML = html;
+    document.getElementById('resultScreen').style.display = 'block';
+}
+
+function restart(){
+    // reiniciar para permitir otro intento sin recargar
+    document.getElementById('resultScreen').style.display = 'none';
+    document.getElementById('startScreen').style.display = 'block';
+    document.getElementById('studentName').value = student; // mantener nombre
+}
+
+// protección simple para evitar inyección en la visualización
+function escapeHtml(str){
+    return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function updateProgress(){
+    const percent = (currentIndex / selectedQuestions.length) * 100;
+    setTimeout(()=>{
+        const bar = document.getElementById('progressBar');
+        if(bar) bar.style.width = percent + '%';
+    }, 50);
+}
+
+</script>
+</body>
+</html>
